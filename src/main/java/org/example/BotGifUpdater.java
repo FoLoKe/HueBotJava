@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Thread to update guild player. Every {@link this#DELAY_MILLIS} checks if there is anything updated and update and
@@ -20,7 +21,7 @@ import java.util.Objects;
 public class BotGifUpdater extends Thread {
 	public static final int DELAY_MILLIS = 1000;
 	private final BotPlayer botPlayer;
-	private boolean editLock = true;
+	private final ReentrantLock messageEditMutex = new ReentrantLock();
 	private Message message;
 	private boolean started = true;
 	private BotPlayState previousBotPlayState = BotPlayState.stop;
@@ -32,7 +33,7 @@ public class BotGifUpdater extends Thread {
 
 	/**
 	 * Creates daemon thread to update player visuals (gif attachment). Use {@link this#setMessage(Message)} to
-	 * attach updating image and {@link this#unlockEdit} to start updating message;
+	 * attach and start updating message;
 	 */
 	public BotGifUpdater(BotPlayer botPlayer) {
 		this.botPlayer = botPlayer;
@@ -51,7 +52,7 @@ public class BotGifUpdater extends Thread {
 
 			botPlayer.setRewindTime(Math.max(0, botPlayer.getRewindTime() - DELAY_MILLIS));
 
-			if (!editLock && isNeedUpdate()) {
+			if (message != null && isNeedUpdate()) {
 				previousBotRepeatState = botPlayer.getBotRepeatState();
 				previousBotPlayState = getPlayerState();
 				previousQueueLen = botPlayer.getWholeQueueLen();
@@ -79,9 +80,11 @@ public class BotGifUpdater extends Thread {
 					List<File> fileList = new ArrayList<>();
 					fileList.add(File.of("ui.gif", gifImageInputStream));
 					// delete previous attachment file
-					message.getRestMessage().edit(MessageEditRequest.builder()
-						.attachments(new ArrayList<>()).build()).block();
-					message = message.edit().withFiles(fileList).block();
+					messageEditMutex.lock();
+						message.getRestMessage().edit(MessageEditRequest.builder()
+							.attachments(new ArrayList<>()).build()).block();
+						message = message.edit().withFiles(fileList).block();
+					messageEditMutex.unlock();
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -112,15 +115,10 @@ public class BotGifUpdater extends Thread {
 			|| previousVolume != botPlayer.getVolume();
 	}
 
-	/**
-	 * Unlocks edidting of the message attached to this BotPlayer updater thread
-	 */
-	public void unlockEdit() {
-		editLock = false;
-	}
-
 	public void setMessage(Message message) {
+		messageEditMutex.lock();
 		this.message = message;
+		messageEditMutex.unlock();
 	}
 
 	public Message getMessage() {

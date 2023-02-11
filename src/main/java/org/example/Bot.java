@@ -5,26 +5,21 @@ import discord4j.core.DiscordClientBuilder;
 import discord4j.core.GatewayDiscordClient;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.event.domain.interaction.DeferrableInteractionEvent;
 import discord4j.core.event.domain.message.MessageCreateEvent;
-import discord4j.core.object.command.ApplicationCommandInteractionOption;
-import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
-import discord4j.core.object.command.ApplicationCommandOption.Type;
 import discord4j.core.object.command.Interaction;
-import discord4j.core.object.component.ActionRow;
-import discord4j.core.object.component.Button;
-import discord4j.core.object.component.LayoutComponent;
 import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.VoiceChannel;
-import discord4j.core.object.reaction.ReactionEmoji;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import discord4j.core.spec.VoiceChannelJoinSpec;
-import discord4j.discordjson.json.ApplicationCommandOptionData;
-import discord4j.discordjson.json.ApplicationCommandRequest;
+import discord4j.rest.service.ApplicationService;
 import discord4j.voice.VoiceConnection;
 import io.github.cdimascio.dotenv.Dotenv;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Bot entry point, USE JAVA 11
@@ -34,17 +29,19 @@ import java.util.*;
  */
 public class Bot {
 	private final String token;
+	private final long devGuildId;
 	private GatewayDiscordClient discordClient;
 	private final Map<String, BotPlayer> guildIdToBotPlayers = new HashMap<>();
 
-	private Bot(String token) {
+	private Bot(String token, long devGuildId) {
 		this.token = token;
+		this.devGuildId = devGuildId;
 	}
 
 	private void run() {
 		discordClient = DiscordClientBuilder.create(token).build().login().block();
 		if (discordClient == null) {
-			System.out.println("coudnt connect ot the discord API");
+			System.out.println("Couldn't connect ot the discord API");
 			return;
 		}
 		discordClient.getEventDispatcher().on(MessageCreateEvent.class)
@@ -55,49 +52,45 @@ public class Bot {
 						.flatMap(channel -> channel.createMessage("guildId: " + message.getGuildId())).block();
 				}
 			});
-		registerGuildCommands(discordClient, 251697634257928193L);
+		registerGuildCommands(discordClient, devGuildId);
+		registerGlobalCommands(discordClient);
 		subscribeToCommands(discordClient);
 		discordClient.onDisconnect().block();
 	}
 
-	public void registerGuildCommands(GatewayDiscordClient discordClient, long guildId) {
-		ApplicationCommandRequest playerCommandRequest = ApplicationCommandRequest.builder()
-			.name("jplayer")
-			.description("call player to this channel")
-			.addOption(ApplicationCommandOptionData.builder()
-				.name("link")
-				.description("youtube track or playlist link")
-				.type(Type.STRING.getValue())
-				.required(false)
-				.build()
-			).build();
+	/**
+	 * Registers Commands for spectifed guild
+	 */
+	private void registerGuildCommands(GatewayDiscordClient discordClient, long guildId) {
 		long applicationId = discordClient.getRestClient().getApplicationId().block();
-		discordClient.getRestClient().getApplicationService()
-			.createGuildApplicationCommand(applicationId, guildId, playerCommandRequest)
-			.subscribe();
+		ApplicationService applicationService = discordClient.getRestClient().getApplicationService();
+		BotGuildCommands.getApplicationCommandRequestList().forEach(applicationCommandRequest ->
+			applicationService.createGuildApplicationCommand(
+				applicationId,
+				guildId,
+				applicationCommandRequest
+			).block()
+		);
+	}
+
+	private void registerGlobalCommands(GatewayDiscordClient discordClient) {
+		// DELETE OLD COMMANDS
+//		long applicationId = discordClient.getRestClient().getApplicationId().block();
+//		ApplicationService applicationService = discordClient.getRestClient().getApplicationService();
+//		List<ApplicationCommandData> applicationCommandDataList =
+//			applicationService.getGlobalApplicationCommands(applicationId).collectList().block();
+//		applicationCommandDataList.forEach(applicationCommandData ->
+//			applicationService.deleteGlobalApplicationCommand(applicationId, applicationCommandData.id().asLong())
+//				.block()
+//		);
 	}
 
 	private void subscribeToCommands(GatewayDiscordClient discordClient) {
 		discordClient.on(ChatInputInteractionEvent.class).subscribe(event -> {
 			try {
-				Interaction interaction = event.getInteraction();
-				if ("jplayer".equals(event.getCommandName())) {
-					event.deferReply();
-					interaction.getGuildId().ifPresent(guildId -> {
-						BotPlayer botPlayer = connect(guildId, interaction);
-						event.getOption("link")
-							.flatMap(ApplicationCommandInteractionOption::getValue)
-							.map(ApplicationCommandInteractionOptionValue::asString)
-							.ifPresent(botPlayer::addToQueue);
-					});
-					event.reply().withComponents(getBotControls()).subscribe();
-
-					interaction.getGuildId().ifPresent(guildId -> {
-						BotPlayer botPlayer = getBotPlayer(guildId);
-						Message message = event.getReply().block();
-						botPlayer.linkMessage(message);
-					});
-				}
+				BotGuildCommands.runCommand(event, this);
+			} catch (PlayerAccessException e) {
+				e.replyToEvent(event);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
@@ -105,55 +98,26 @@ public class Bot {
 
 		discordClient.on(ButtonInteractionEvent.class).subscribe(event -> {
 			try {
-				event.edit(InteractionApplicationCommandCallbackSpec.builder().build()).block();
+				event.deferReply();
 				event.getInteraction().getGuildId().ifPresent(guildId -> {
 					BotPlayer botPlayer = connect(guildId, event.getInteraction());
-					if ("play".equals(event.getCustomId())) {
-						botPlayer.play();
-					} else if ("skip".equals(event.getCustomId())) {
-						botPlayer.skip();
-					} else if ("prev".equals(event.getCustomId())) {
-						botPlayer.prev();
-					} else if ("plus".equals(event.getCustomId())) {
-						botPlayer.addVolume(5);
-					} else if ("minus".equals(event.getCustomId())) {
-						botPlayer.addVolume(-5);
-					} else if ("link".equals(event.getCustomId())) {
-						botPlayer.getLink();
-					} else if ("shuffle".equals(event.getCustomId())) {
-						botPlayer.shuffle();
-					} else if (BotRepeatState.repeatQ.name().equals(event.getCustomId())) {
-						botPlayer.repeatQ();
-					} else if (BotRepeatState.repeat.name().equals(event.getCustomId())) {
-						botPlayer.repeat();
-					} else if ("unload".equals(event.getCustomId())) {
-						botPlayer.unload();
-					}
+					BotPlayerButtonControls.runCommand(event, botPlayer);
 				});
+			} catch (PlayerAccessException e) {
+				e.replyToEvent(event);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 		});
 	}
 
-	private List<LayoutComponent> getBotControls() {
-		List<LayoutComponent> layoutComponentList = new ArrayList<>();
-		Button prevButton = Button.secondary("prev", ReactionEmoji.unicode("⏮"));
-		Button playButton = Button.secondary("play", ReactionEmoji.unicode("⏯"));
-		Button skipButton = Button.secondary("skip", ReactionEmoji.unicode("⏭"));
-		Button shuffleButton = Button.secondary("shuffle", ReactionEmoji.unicode("\uD83D\uDD00"));
-		Button repeatQButton = Button.secondary(BotRepeatState.repeatQ.name(), ReactionEmoji.unicode("🔁"));
-		layoutComponentList.add(ActionRow.of(prevButton, playButton, skipButton, shuffleButton, repeatQButton));
-		Button repeatButton = Button.secondary(BotRepeatState.repeat.name(), ReactionEmoji.unicode("🔄"));
-		Button linkButton = Button.secondary("link", ReactionEmoji.unicode("↗"));
-		Button unloadButton = Button.secondary("unload", ReactionEmoji.unicode("⏏"));
-		Button minusButton = Button.secondary("minus", ReactionEmoji.unicode("🔉"));
-		Button plusButton = Button.secondary("plus", ReactionEmoji.unicode("🔊"));
-		layoutComponentList.add(ActionRow.of(repeatButton, linkButton, unloadButton, minusButton, plusButton));
-		return layoutComponentList;
-	}
-
-	private BotPlayer connect(Snowflake guildId, Interaction interaction) {
+	/**
+	 * Tries to connect to the channel.
+	 *
+	 * @return BotPlayer accociated with the guild
+	 * @throws PlayerAccessException if palyer was accesed outside of the voiceCahnnel
+	 */
+	public BotPlayer connect(Snowflake guildId, Interaction interaction) {
 		System.out.println("connect event");
 		BotPlayer guildBotPlayer = getBotPlayer(guildId);
 		VoiceChannelJoinSpec voiceChannelJoinSpec = VoiceChannelJoinSpec.builder()
@@ -163,24 +127,25 @@ public class Bot {
 			.timeout(Duration.ofSeconds(2))
 			.build();
 
-		interaction.getMember()
+		Optional<VoiceChannel> voiceChannelOptional = interaction.getMember()
 			.map(member -> member.getVoiceState().block())
-			.map(voiceState -> voiceState.getChannel().block())
-			.filter(voiceChannel -> !isAlreadyConnected(voiceChannel))
-			.ifPresent(voiceChannel -> {
-				System.out.println("reconnecting");
-				voiceChannel.join(voiceChannelJoinSpec).block(Duration.ofSeconds(3));
-			});
+			.map(voiceState -> voiceState.getChannel().block());
+
+		if (voiceChannelOptional.isPresent()) {
+			voiceChannelOptional.filter(voiceChannel -> !isAlreadyConnected(voiceChannel))
+				.ifPresent(voiceChannel -> voiceChannel.join(voiceChannelJoinSpec).block(Duration.ofSeconds(3)));
+		} else {
+			throw new PlayerAccessException("Join the channel first!");
+		}
 
 		return guildBotPlayer;
 	}
 
-	private BotPlayer getBotPlayer(Snowflake guildId) {
-		BotPlayer guildBotPlayer = guildIdToBotPlayers.computeIfAbsent(
+	public BotPlayer getBotPlayer(Snowflake guildId) {
+		return guildIdToBotPlayers.computeIfAbsent(
 			guildId.asString(),
 			this::getNewBotPlayer
 		);
-		return guildBotPlayer;
 	}
 
 	private BotPlayer getNewBotPlayer(String guildId) {
@@ -210,8 +175,26 @@ public class Bot {
 
 	public static void main(String[] args) {
 		Dotenv dotenv = Dotenv.load();
-		Bot bot = new Bot(dotenv.get("TOKEN"));
+		Bot bot = new Bot(dotenv.get("TOKEN"), Long.parseLong(dotenv.get("DEV_GUILD_ID")));
 		bot.run();
 		Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+	}
+
+	public static class PlayerAccessException extends RuntimeException {
+		public PlayerAccessException(String message) {
+			super(message);
+		}
+
+		/**
+		 * Replies to provided DeferrableInteractionEvent with error message
+		 */
+		public void replyToEvent(DeferrableInteractionEvent event) {
+			System.out.println("Access fail: " + getMessage());
+			event.reply(InteractionApplicationCommandCallbackSpec.builder()
+				.ephemeral(true)
+				.content(getMessage())
+				.build()
+			).block();
+		}
 	}
 }

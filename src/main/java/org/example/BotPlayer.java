@@ -120,8 +120,8 @@ public final class BotPlayer extends AudioProvider {
 		botQueue.clear();
 	}
 
-	public void setVolume(int amount) {
-		volume = Math.max(0, Math.min(100, amount));
+	public void setVolume(long amount) {
+		volume = (int) Math.max(0, Math.min(100, amount));
 		audioPlayer.setVolume(volume);
 	}
 
@@ -129,9 +129,12 @@ public final class BotPlayer extends AudioProvider {
 		return volume;
 	}
 
-	public void linkMessage(Message message) {
+	public void setMessage(Message message) {
 		botGifUpdater.setMessage(message);
-		botGifUpdater.unlockEdit();
+	}
+
+	public Message getMessage() {
+		return botGifUpdater.getMessage();
 	}
 
 	public BotRepeatState getBotRepeatState() {
