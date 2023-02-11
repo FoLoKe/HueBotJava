@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke.player;
 
 import com.google.common.collect.Lists;
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;

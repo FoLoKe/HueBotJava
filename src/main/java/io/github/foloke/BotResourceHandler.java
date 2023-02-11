@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke;
 
 import javax.imageio.ImageIO;
 import java.awt.*;

@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke.player;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;

@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke;
 
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
@@ -9,6 +9,7 @@ import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
 import discord4j.discordjson.json.ImmutableApplicationCommandRequest.Builder;
+import io.github.foloke.player.BotPlayer;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,7 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.example.utils.BotPlayerCommandsUtils.*;
+import static io.github.foloke.utils.BotPlayerCommandsUtils.*;
 
 /**
  * Guild commnads

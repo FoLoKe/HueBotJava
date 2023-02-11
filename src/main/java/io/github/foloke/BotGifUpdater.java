@@ -1,14 +1,18 @@
-package org.example;
+package io.github.foloke;
 
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.core.object.entity.Message;
 import discord4j.core.spec.MessageCreateFields.File;
 import discord4j.discordjson.json.MessageEditRequest;
+import io.github.foloke.player.BotPlayState;
+import io.github.foloke.player.BotPlayer;
+import io.github.foloke.player.BotRepeatState;
 
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -21,7 +25,7 @@ import java.util.concurrent.locks.ReentrantLock;
 public class BotGifUpdater extends Thread {
 	public static final int DELAY_MILLIS = 1000;
 	private final BotPlayer botPlayer;
-	private final ReentrantLock messageEditMutex = new ReentrantLock();
+	private final Lock messageEditMutex = new ReentrantLock();
 	private Message message;
 	private boolean started = true;
 	private BotPlayState previousBotPlayState = BotPlayState.stop;

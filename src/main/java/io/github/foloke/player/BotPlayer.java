@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke.player;
 
 import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
@@ -10,6 +10,7 @@ import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame;
 import com.sedmelluq.discord.lavaplayer.track.playback.NonAllocatingAudioFrameBuffer;
 import discord4j.core.object.entity.Message;
 import discord4j.voice.AudioProvider;
+import io.github.foloke.BotGifUpdater;
 
 import java.nio.ByteBuffer;
 

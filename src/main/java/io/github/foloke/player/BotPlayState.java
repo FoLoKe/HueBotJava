@@ -1,4 +1,6 @@
-package org.example;
+package io.github.foloke.player;
+
+import io.github.foloke.BotResourceHandler;
 
 import java.awt.*;
 import java.util.Optional;

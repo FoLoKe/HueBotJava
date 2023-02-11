@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke;
 
 import discord4j.common.util.Snowflake;
 import discord4j.core.DiscordClientBuilder;
@@ -15,6 +15,8 @@ import discord4j.core.spec.VoiceChannelJoinSpec;
 import discord4j.rest.service.ApplicationService;
 import discord4j.voice.VoiceConnection;
 import io.github.cdimascio.dotenv.Dotenv;
+import io.github.foloke.player.BotPlayer;
+import io.github.foloke.player.BotPlayerButtonControls;
 
 import java.time.Duration;
 import java.util.HashMap;

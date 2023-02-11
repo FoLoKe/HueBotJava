@@ -1,13 +1,13 @@
-package org.example.utils;
+package io.github.foloke.utils;
 
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.Interaction;
 import discord4j.core.object.entity.Message;
-import org.example.Bot;
-import org.example.BotPlayer;
-import org.example.BotPlayerButtonControls;
+import io.github.foloke.Bot;
+import io.github.foloke.player.BotPlayer;
+import io.github.foloke.player.BotPlayerButtonControls;
 
 /**
  * Service for player commands

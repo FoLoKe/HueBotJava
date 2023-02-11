@@ -1,4 +1,4 @@
-package org.example;
+package io.github.foloke;
 
 import de.cerus.jgif.GifEncoder;
 import de.cerus.jgif.GifImage;
