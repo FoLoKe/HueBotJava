@@ -12,11 +12,13 @@ import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.VoiceChannel;
 import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import discord4j.core.spec.VoiceChannelJoinSpec;
+import discord4j.gateway.intent.IntentSet;
 import discord4j.rest.service.ApplicationService;
 import discord4j.voice.VoiceConnection;
 import io.github.cdimascio.dotenv.Dotenv;
 import io.github.foloke.player.BotPlayer;
 import io.github.foloke.player.BotPlayerButtonControls;
+import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -41,7 +43,9 @@ public class Bot {
 	}
 
 	private void run() {
-		discordClient = DiscordClientBuilder.create(token).build().login().block();
+		discordClient = DiscordClientBuilder.create(token).build().gateway()
+			.setEnabledIntents(IntentSet.all())
+			.login().block();
 		if (discordClient == null) {
 			System.out.println("Couldn't connect ot the discord API");
 			return;
@@ -126,7 +130,7 @@ public class Bot {
 			.provider(guildBotPlayer)
 			.selfDeaf(true)
 			.selfMute(false)
-			.timeout(Duration.ofSeconds(2))
+			.ipDiscoveryRetrySpec(Retry.max(10))
 			.build();
 
 		Optional<VoiceChannel> voiceChannelOptional = interaction.getMember()
@@ -135,7 +139,9 @@ public class Bot {
 
 		if (voiceChannelOptional.isPresent()) {
 			voiceChannelOptional.filter(voiceChannel -> !isAlreadyConnected(voiceChannel))
-				.ifPresent(voiceChannel -> voiceChannel.join(voiceChannelJoinSpec).block(Duration.ofSeconds(3)));
+				.ifPresent(voiceChannel -> voiceChannel.join(voiceChannelJoinSpec)
+					.delayElement(Duration.ofSeconds(3))
+					.block(Duration.ofSeconds(600)));
 		} else {
 			throw new PlayerAccessException("Join the channel first!");
 		}
@@ -170,7 +176,7 @@ public class Bot {
 			return true;
 		}
 
-		botVoiceConnection.ifPresent(voiceConnection -> voiceConnection.disconnect().block());
+		botVoiceConnection.ifPresent(voiceConnection -> voiceConnection.disconnect().block(Duration.ofSeconds(7)));
 		System.out.println("disconnected from old channel");
 		return false;
 	}
