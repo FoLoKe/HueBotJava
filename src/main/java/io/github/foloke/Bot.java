@@ -140,8 +140,7 @@ public class Bot {
 		if (voiceChannelOptional.isPresent()) {
 			voiceChannelOptional.filter(voiceChannel -> !isAlreadyConnected(voiceChannel))
 				.ifPresent(voiceChannel -> voiceChannel.join(voiceChannelJoinSpec)
-					.delayElement(Duration.ofSeconds(3))
-					.block(Duration.ofSeconds(600)));
+					.block());
 		} else {
 			throw new PlayerAccessException("Join the channel first!");
 		}
@@ -176,8 +175,10 @@ public class Bot {
 			return true;
 		}
 
-		botVoiceConnection.ifPresent(voiceConnection -> voiceConnection.disconnect().block(Duration.ofSeconds(7)));
-		System.out.println("disconnected from old channel");
+		botVoiceConnection.ifPresent(voiceConnection -> {
+			voiceConnection.disconnect().block(Duration.ofSeconds(7));
+			System.out.println("disconnected from old channel");
+		});
 		return false;
 	}
 

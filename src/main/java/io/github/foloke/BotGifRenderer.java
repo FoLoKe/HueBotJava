@@ -39,7 +39,7 @@ public class BotGifRenderer {
 	public static final int SECOND_ROW_TEXT_Y = 65;
 	public static final float MIN_ALPHA = 0.3f;
 	public static final double HALF = 0.5;
-	public static final int MAX_RUNNING_TEXT_SIZE = 260;
+	public static final int MAX_RUNNING_TEXT_SIZE = 265;
 
 	/**
 	 * Creates {@link InputStream} that can be passed into {@link File}
@@ -204,8 +204,7 @@ public class BotGifRenderer {
 		int currentPosition = (int) Math.min(stringBuilder.length(), frame * frameDuration / timePerChar);
 		String frontText = stringBuilder.substring(currentPosition, stringBuilder.length());
 		String wholeText = frontText + stringBuilder.substring(0, currentPosition);
-		shrinkText(wholeText, fontMetrics);
-		addText(ctx, wholeText, x, y, alpha);
+		addText(ctx, shrinkText(wholeText, fontMetrics), x, y, alpha);
 	}
 
 	private void expandText(StringBuilder str, FontMetrics fontMetrics) {
@@ -216,12 +215,14 @@ public class BotGifRenderer {
 		} while (strLen < MAX_RUNNING_TEXT_SIZE);
 	}
 
-	private void shrinkText(String string, FontMetrics fontMetrics) {
+	private String shrinkText(String string, FontMetrics fontMetrics) {
+		String tmpString = string;
 		int len;
 		do {
-			len = fontMetrics.stringWidth(string);
-			string = string.substring(0, string.length() - 1);
-		} while (len > MAX_RUNNING_TEXT_SIZE && string.length() > VOLUME_SYMBOL_LEN);
+			len = fontMetrics.stringWidth(tmpString);
+			tmpString = tmpString.substring(0, tmpString.length() - 1);
+		} while (len > MAX_RUNNING_TEXT_SIZE && tmpString.length() > VOLUME_SYMBOL_LEN);
+		return tmpString;
 	}
 
 	private void addText(Graphics2D ctx, String text, int x, int y, float alpha) {

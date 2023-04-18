@@ -24,6 +24,8 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 public class BotGifUpdater extends Thread {
 	public static final int DELAY_MILLIS = 1000;
+	private static final String MOTD = "Use the /q command to add YT or TW audio";
+	private static final String PLAY_HINT = "Hit that paly button! Or use the /q command to add more YT or TW audio";
 	private final BotPlayer botPlayer;
 	private final Lock messageEditMutex = new ReentrantLock();
 	private Message message;
@@ -66,9 +68,9 @@ public class BotGifUpdater extends Thread {
 				started = false;
 				try {
 					String text = previousQueueLen == 0 ?
-						"Use the /q command to add YouTube tracks" :
+						MOTD :
 						audioTrack == null ?
-							"Hit that paly button! Or use the /q command to add more YouTube tracks" :
+							PLAY_HINT :
 							audioTrack.getInfo().title;
 					InputStream gifImageInputStream = new BotGifRenderer().makeAGifAsInputStream(
 						previousQueuePosition,

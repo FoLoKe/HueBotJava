@@ -31,6 +31,7 @@ public enum BotGuildCommands {
 	player {
 		@Override
 		public void execute(ChatInputInteractionEvent event, Bot bot) {
+			event.deferReply();
 			connectAndAddToQueue(event, bot, LINK_OPTION_NAME);
 			createMessage(event, bot);
 		}

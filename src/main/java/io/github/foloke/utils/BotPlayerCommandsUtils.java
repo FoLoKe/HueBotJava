@@ -41,7 +41,7 @@ public class BotPlayerCommandsUtils {
 	}
 
 	public static void createMessage(ChatInputInteractionEvent event, Bot bot) {
-		event.reply().withComponents(BotPlayerButtonControls.getButtons()).subscribe();
+		event.reply().withComponents(BotPlayerButtonControls.getButtons()).block();
 		event.getInteraction()
 			.getGuildId()
 			.ifPresent(guildId -> {
