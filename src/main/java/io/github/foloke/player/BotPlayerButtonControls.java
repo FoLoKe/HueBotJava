@@ -20,10 +20,10 @@ import java.util.stream.Collectors;
  * @since 11.02.2023
  */
 public enum BotPlayerButtonControls {
-	prev {
+	PREVIOUS {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.prev();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.playPrevious();
 		}
 
 		@Override
@@ -31,10 +31,10 @@ public enum BotPlayerButtonControls {
 			return "⏮";
 		}
 	},
-	play {
+	PLAY {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.play();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.play();
 		}
 
 		@Override
@@ -42,10 +42,10 @@ public enum BotPlayerButtonControls {
 			return "⏯";
 		}
 	},
-	skip {
+	SKIP {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.skip();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.skip();
 		}
 
 		@Override
@@ -53,10 +53,10 @@ public enum BotPlayerButtonControls {
 			return "⏭";
 		}
 	},
-	shuffle {
+	SHUFFLE {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.shuffle();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.shuffle();
 		}
 
 		@Override
@@ -64,10 +64,10 @@ public enum BotPlayerButtonControls {
 			return "\uD83D\uDD00";
 		}
 	},
-	repeatQ {
+	REPEAT_QUEUE {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.repeatQ();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.toggleRepeatQueue();
 		}
 
 		@Override
@@ -75,10 +75,10 @@ public enum BotPlayerButtonControls {
 			return "🔁";
 		}
 	},
-	repeat {
+	REPEAT_TRACK {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.repeat();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.toggleRepeatTrack();
 		}
 
 		@Override
@@ -87,10 +87,10 @@ public enum BotPlayerButtonControls {
 		}
 	},
 
-	link {
+	GET_LINK {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.getLink();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.getLink();
 		}
 
 		@Override
@@ -98,10 +98,10 @@ public enum BotPlayerButtonControls {
 			return "↗";
 		}
 	},
-	unload {
+	UNLOAD_QUEUE {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.unload();
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.unload();
 		}
 
 		@Override
@@ -109,10 +109,10 @@ public enum BotPlayerButtonControls {
 			return "⏏";
 		}
 	},
-	minus {
+	REDUCE_VOLUME {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.addVolume(-5);
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.reduceVolume();
 		}
 
 		@Override
@@ -120,10 +120,10 @@ public enum BotPlayerButtonControls {
 			return "🔉";
 		}
 	},
-	plus {
+	ADD_VOLUME {
 		@Override
-		void execute(BotPlayer botPlayer) {
-			botPlayer.addVolume(5);
+		void execute(BotGuildPlayer botGuildPlayer) {
+			botGuildPlayer.addVolume();
 		}
 
 		@Override
@@ -131,7 +131,7 @@ public enum BotPlayerButtonControls {
 			return "🔊";
 		}
 	};
-	abstract void execute(BotPlayer botPlayer);
+	abstract void execute(BotGuildPlayer botGuildPlayer);
 
 	public Button getButton() {
 		return Button.secondary(name(), ReactionEmoji.unicode(getText()));
@@ -148,16 +148,15 @@ public enum BotPlayerButtonControls {
 		event.edit(InteractionApplicationCommandCallbackSpec.builder().build()).block();
 	}
 
-
 	/**
 	 * Runs player command if found
 	 */
-	public static void runCommand(ButtonInteractionEvent event, BotPlayer botPlayer) {
+	public static void runCommand(ButtonInteractionEvent event, BotGuildPlayer botGuildPlayer) {
 		Arrays.stream(values())
 			.filter(command -> event.getCustomId().equals(command.name()))
 			.findFirst()
 			.ifPresent(command -> {
-				command.execute(botPlayer);
+				command.execute(botGuildPlayer);
 				command.reply(event);
 			});
 	}

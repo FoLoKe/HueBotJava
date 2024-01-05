@@ -1,21 +1,36 @@
 package io.github.foloke;
 
 import com.google.common.collect.Lists;
+import discord4j.common.util.Snowflake;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
+import discord4j.core.object.DiscordObject;
 import discord4j.core.object.command.ApplicationCommandInteractionOption;
 import discord4j.core.object.command.ApplicationCommandInteractionOptionValue;
 import discord4j.core.object.command.ApplicationCommandOption.Type;
 import discord4j.core.object.command.Interaction;
 import discord4j.core.object.entity.Member;
+import discord4j.core.object.entity.Message;
 import discord4j.core.object.entity.channel.VoiceChannel;
-import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
+import discord4j.core.spec.EmbedCreateSpec;
+import discord4j.discordjson.Id;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import discord4j.discordjson.json.ApplicationCommandRequest;
 import discord4j.discordjson.json.ImmutableApplicationCommandRequest.Builder;
-import io.github.foloke.player.BotPlayer;
+import discord4j.rest.entity.RestChannel;
+import io.github.foloke.player.BotGuildPlayer;
+import io.github.foloke.player.BotRepeatState;
+import io.github.foloke.utils.BotLocalization;
 
+import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -27,20 +42,21 @@ import static io.github.foloke.utils.BotPlayerCommandsUtils.*;
  * @author Dmitry Marchenko
  * @since 11.02.2023
  */
+// TODO: REFACTOR ALL!!!
 public enum BotGuildCommands {
 	player {
 		@Override
 		public void execute(ChatInputInteractionEvent event, Bot bot) {
-			event.deferReply();
 			connectAndAddToQueue(event, bot, LINK_OPTION_NAME);
 			createMessage(event, bot);
+			event.editReply(BotLocalization.getPlayerMessage("player_created_message")).block();
 		}
 
 		@Override
 		public List<ApplicationCommandOptionData> getOptions() {
 			return Collections.singletonList(ApplicationCommandOptionData.builder()
 				.name(LINK_OPTION_NAME)
-				.description(YOUTUBE_LINK_MESSAGE)
+				.description(BotLocalization.getPlayerMessage("link_description"))
 				.type(Type.STRING.getValue())
 				.required(false)
 				.build()
@@ -49,28 +65,35 @@ public enum BotGuildCommands {
 
 		@Override
 		public String getDescription() {
-			return "Call player to this channel";
+			return BotLocalization.getPlayerMessage("call_player_description");
+		}
+
+		@Override
+		protected Boolean isEphemeral() {
+			return true;
 		}
 	},
 	q {
 		@Override
 		public void execute(ChatInputInteractionEvent event, Bot bot) {
-			connectAndAddToQueue(event, bot, LINK_OPTION_NAME);
-			if (!tryCreateMessage(event, bot)) {
-				event.reply(InteractionApplicationCommandCallbackSpec.builder()
-					.content("Track added")
-					.ephemeral(true)
-					.build()
-				).block();
+			Optional<BotGuildPlayer> botGuildPlayerOptional = connectAndAddToQueue(event, bot, LINK_OPTION_NAME);
+			if (botGuildPlayerOptional.isPresent() && !tryCreateMessage(event, bot)) {
+				BotGuildPlayer botGuildPlayer = botGuildPlayerOptional.get();
+				String responseMessage = BotLocalization.getPlayerMessage("track_added_message");
+				if (botGuildPlayer.getBotRepeatState() == BotRepeatState.REPEAT) {
+					responseMessage = BotLocalization.getPlayerMessage("repeat_enabled_warning");
+				}
+				event.editReply(responseMessage).block();
+			} else {
+				event.editReply(BotLocalization.getPlayerMessage("player_created_message"));
 			}
-			;
 		}
 
 		@Override
 		public List<ApplicationCommandOptionData> getOptions() {
 			return Collections.singletonList(ApplicationCommandOptionData.builder()
 				.name(LINK_OPTION_NAME)
-				.description(YOUTUBE_LINK_MESSAGE)
+				.description(BotLocalization.getPlayerMessage("link_description"))
 				.type(Type.STRING.getValue())
 				.required(true)
 				.build()
@@ -79,7 +102,12 @@ public enum BotGuildCommands {
 
 		@Override
 		public String getDescription() {
-			return "Add track to queue";
+			return BotLocalization.getPlayerMessage("add_link_description");
+		}
+
+		@Override
+		protected Boolean isEphemeral() {
+			return true;
 		}
 	},
 	volume {
@@ -87,27 +115,22 @@ public enum BotGuildCommands {
 		public void execute(ChatInputInteractionEvent event, Bot bot) {
 			Interaction interaction = event.getInteraction();
 			interaction.getGuildId().ifPresent(guildId -> {
-				BotPlayer botPlayer = bot.connect(guildId, interaction);
+				BotGuildPlayer botGuildPlayer = bot.connect(guildId, interaction);
 				boolean isPlayerNew = tryCreateMessage(event, bot);
 				Optional<Long> volumeValue = event.getOption(AMOUNT_OPTION_NAME)
 					.flatMap(ApplicationCommandInteractionOption::getValue)
 					.map(ApplicationCommandInteractionOptionValue::asLong);
 				if (volumeValue.isPresent()) {
-					botPlayer.setVolume(volumeValue.get());
+					botGuildPlayer.setVolumePercent(volumeValue.get().floatValue());
 					if (!isPlayerNew) {
-						event.reply(
-							InteractionApplicationCommandCallbackSpec.builder()
-								.content("Volume set to: " + botPlayer.getVolume() + "%")
-								.ephemeral(true)
-								.build()
+						event.editReply(
+							BotLocalization.getPlayerMessage("volume_set_message", botGuildPlayer.getVolumePercent())
 						).block();
 					}
 				} else {
 					if (!isPlayerNew) {
-						event.reply(InteractionApplicationCommandCallbackSpec.builder()
-							.content("Volume is: " + botPlayer.getVolume() + "%")
-							.ephemeral(true)
-							.build()
+						event.editReply(
+							BotLocalization.getPlayerMessage("volume_is_message", botGuildPlayer.getVolumePercent())
 						).block();
 					}
 				}
@@ -118,7 +141,7 @@ public enum BotGuildCommands {
 		public List<ApplicationCommandOptionData> getOptions() {
 			return Collections.singletonList(ApplicationCommandOptionData.builder()
 				.name(AMOUNT_OPTION_NAME)
-				.description("amount of volume to set")
+				.description(BotLocalization.getPlayerMessage("volume_amount_description"))
 				.type(Type.INTEGER.getValue())
 				.required(false)
 				.build()
@@ -127,9 +150,15 @@ public enum BotGuildCommands {
 
 		@Override
 		String getDescription() {
-			return "Get or set volume to the active player";
+			return BotLocalization.getPlayerMessage("volume_description") ;
 		}
-	}, roll {
+
+		@Override
+		protected Boolean isEphemeral() {
+			return true;
+		}
+	},
+	roll {
 		private final Random random = new Random();
 		private static final String D_OPTION_NAME = "d";
 		private static final String COUNT_OPTION_NAME = "x";
@@ -150,20 +179,21 @@ public enum BotGuildCommands {
 				.map(ApplicationCommandInteractionOptionValue::asLong)
 				.orElse(DEFAULT_COUNT_VALUE)
 				.intValue();
-			Optional<String> message = event.getOption("for")
+			Optional<String> message = event.getOption(FOR_OPTION_NAME)
 				.flatMap(ApplicationCommandInteractionOption::getValue)
 				.map(ApplicationCommandInteractionOptionValue::asString);
-			StringBuilder replyStringBuilder = new StringBuilder("D").append(d).append(" roll x").append(count);
-			message.ifPresent(m -> {
-				replyStringBuilder.append(" ").append(m);
-			});
+			StringBuilder replyStringBuilder = new StringBuilder(
+				BotLocalization.getPlayerMessage( "d_roll", d, count)
+			);
+			message.ifPresent(m -> replyStringBuilder.append(" ").append(m));
 			replyStringBuilder.append(":\n");
 
 			String caption = replyStringBuilder.toString();
-			event.reply(String.join(caption, "ROLLING...")).block();
+			event.editReply(String.join(caption, BotLocalization.getPlayerMessage("rolling_message"))).block();
 			IntStream.rangeClosed(1, count).forEach(index -> {
 				int diceValue = 1 + random.nextInt(d);
-				String diceReply = diceValue == 1 ? " oh no..." : diceValue == d ? " Crit!" : "";
+				String diceReply = diceValue == 1 ? " " + BotLocalization.getPlayerMessage("critical_misfortune")
+					: diceValue == d ? " " + BotLocalization.getPlayerMessage("critical") : "";
 
 				replyStringBuilder.append(index).append(": \t\t").append(diceValue).append(diceReply).append("\n");
 			});
@@ -172,7 +202,7 @@ public enum BotGuildCommands {
 
 		@Override
 		String getDescription() {
-			return "Roll dice!";
+			return BotLocalization.getPlayerMessage("roll_description");
 		}
 
 		@Override
@@ -180,22 +210,23 @@ public enum BotGuildCommands {
 			List<ApplicationCommandOptionData> options = new ArrayList<>();
 			options.add(ApplicationCommandOptionData.builder()
 				.name(COUNT_OPTION_NAME)
-				.description("Count of dices")
+				.description(BotLocalization.getPlayerMessage("dices_count"))
 				.type(Type.INTEGER.getValue())
 				.maxValue(MAX_COUNT_VALUE)
 				.required(false)
 				.build()
 			);
-			options.add(ApplicationCommandOptionData.builder().name(D_OPTION_NAME)
-				.description("Dice type (D4, D6, D12 etc)")
+			options.add(ApplicationCommandOptionData.builder()
+				.name(D_OPTION_NAME)
+				.description(BotLocalization.getPlayerMessage("dice_type"))
 				.type(Type.INTEGER.getValue())
 				.maxValue(MAX_D_VALUE)
 				.required(false)
 				.build()
 			);
 			options.add(ApplicationCommandOptionData.builder()
-				.name("for")
-				.description("roll purpose")
+				.name(FOR_OPTION_NAME)
+				.description(BotLocalization.getPlayerMessage("for_option_description"))
 				.type(Type.STRING.getValue())
 				.required(false)
 				.build()
@@ -223,7 +254,7 @@ public enum BotGuildCommands {
 				.orElse(false);
 
 			voiceChannelOptional.ifPresentOrElse(voiceChannel -> {
-				event.reply("Matchmaikng in channel " + voiceChannel.getName() + "...").block();
+				event.editReply(BotLocalization.getPlayerMessage("matchmaking_message", voiceChannel.getName())).block();
 
 				List<Member> memberList = Optional.ofNullable(voiceChannel.getVoiceStates().collectList().block())
 					.orElseGet(Collections::emptyList)
@@ -244,14 +275,17 @@ public enum BotGuildCommands {
 					.boxed()
 					.collect(Collectors.toMap(teamNameList::get, teamsList::get));
 
-				StringBuilder stringBuilder = new StringBuilder("Teams are:\n");
+				StringBuilder stringBuilder = new StringBuilder(BotLocalization.getPlayerMessage("teams_message"))
+					.append("\n");
 				teamMembersToTeamNameMap.forEach((teamName, members) -> {
 					stringBuilder.append(teamName).append(":\n");
 					AtomicBoolean leader = new AtomicBoolean(true);
 					members.forEach(member -> {
 						if (leaders && leader.get()) {
-							stringBuilder.append("Leader:\t__").append(member.getDisplayName())
-								.append("__\nTeammates:\t");
+							stringBuilder.append(BotLocalization.getPlayerMessage("team_leader_message"))
+								.append("\t__").append(member.getDisplayName())
+								.append("__\n").append(BotLocalization.getPlayerMessage("teammates_message"))
+								.append("\t");
 							leader.set(false);
 						} else {
 							stringBuilder.append("__").append(member.getDisplayName()).append("__\t");
@@ -261,14 +295,12 @@ public enum BotGuildCommands {
 				});
 
 				event.editReply(stringBuilder.toString()).block();
-			}, () -> {
-				event.reply("You are noy in the channel").block();
-			});
+			}, () -> event.editReply(BotLocalization.getPlayerMessage("not_in_the_channel_warning")).block());
 		}
 
 		@Override
 		String getDescription() {
-			return "voice-cahnnel matchmaking";
+			return BotLocalization.getPlayerMessage("matchmaking_description");
 		}
 
 		@Override
@@ -278,24 +310,98 @@ public enum BotGuildCommands {
 				.name(TEAMS_OPTION_NAME)
 				.type(Type.NUMBER.getValue())
 				.maxValue(10d)
-				.description("Teams count")
+				.description(BotLocalization.getPlayerMessage("teams_count_description"))
 				.required(false)
 				.build()
 			);
 			optionDataList.add(ApplicationCommandOptionData.builder()
 				.name(LEADERS_OPTION_NAME)
 				.type(Type.BOOLEAN.getValue())
-				.description("Choose leaders")
+				.description(BotLocalization.getPlayerMessage("team_leaders_description"))
 				.required(false)
 				.build()
 			);
 			return optionDataList;
 		}
+	},
+	clean {
+		private final Lock messageDeleteMutex = new ReentrantLock();
+		private final transient Executor threadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+
+		@Override
+		void execute(ChatInputInteractionEvent event, Bot bot) {
+			if (messageDeleteMutex.tryLock()) {
+				threadPoolExecutor.execute(() -> cleanMessages(event, bot.getCleaningImageUrl()));
+			} else {
+				event.editReply(BotLocalization.getPlayerMessage("delete_operation_in_use")).block();
+			}
+		}
+
+		private void cleanMessages(ChatInputInteractionEvent event, String cleaningImageUrl) {
+			try {
+				logger.log(Level.INFO, () -> "Started deletion thread " + Thread.currentThread());
+				event.editReply()
+					.withEmbeds(EmbedCreateSpec.create()
+					.withImage(cleaningImageUrl)
+					.withTitle(BotLocalization.getPlayerMessage("searching_messages_to_delete_message"))
+				).block();
+				AtomicInteger counter = new AtomicInteger();
+				Snowflake channelId = event.getInteraction().getChannelId();
+				event.getInteraction()
+					.getGuildId()
+					.flatMap(guildId -> event.getInteraction().getGuild().blockOptional())
+					.ifPresent(guild -> {
+						Snowflake botUserId = guild.getClient().getSelfId();
+						guild.getChannelById(channelId).blockOptional().ifPresent(guildChannel -> {
+							RestChannel restChannel = guildChannel.getRestChannel();
+							List<Message> messages = findMessagesToDelete(guild, restChannel, botUserId);
+							if (messages != null) {
+								int size = messages.size();
+								logger.log(Level.INFO, () -> "Deleteing " + size + " messages");
+								counter.set(size);
+								deleteMessages(messages);
+							}
+						});
+					});
+				logger.log(Level.INFO, "Deletion completed");
+				event.editReply()
+					.withEmbeds(EmbedCreateSpec.create()
+					.withImage(cleaningImageUrl)
+					.withTitle(BotLocalization.getPlayerMessage("found_and_deleted_message", counter.get())))
+					.block();
+			} catch (Exception e) {
+				logger.log(Level.SEVERE, "Mesage cleananing error", e);
+			} finally {
+				messageDeleteMutex.unlock();
+			}
+		}
+
+		private void deleteMessages(List<Message> messages) {
+			// NO BULK DELETE CUZ FUCKING DISCORD API 14 days limit
+			messages.forEach(message -> {
+				message.delete().block();
+				logger.log(Level.INFO,
+					() -> "Deleted: " + message.getId() + " " + message.getTimestamp());
+			});
+		}
+
+		private List<Message> findMessagesToDelete(DiscordObject guild, RestChannel restChannel, Snowflake botUserId) {
+			return restChannel.getMessagesBefore(Snowflake.of(Instant.now().minusMillis(10000)))
+				.filter(messageData -> messageData.author().id().equals(Id.of(botUserId.asString())))
+				.map(messageData -> new Message(guild.getClient(), messageData))
+				.collectList()
+				.block();
+		}
+
+		@Override
+		String getDescription() {
+			return BotLocalization.getPlayerMessage("delete_description");
+		}
 	};
 
 	public static final String AMOUNT_OPTION_NAME = "amount";
 	public static final String LINK_OPTION_NAME = "link";
-	public static final String YOUTUBE_LINK_MESSAGE = "YouTube track or playlist link";
+	protected final Logger logger = Logger.getLogger(BotGuildCommands.class.getName());
 
 	abstract void execute(ChatInputInteractionEvent event, Bot bot);
 
@@ -309,11 +415,17 @@ public enum BotGuildCommands {
 	 * Executes command if exists
 	 */
 	public static void runCommand(ChatInputInteractionEvent event, Bot bot) {
-		event.deferReply();
 		Arrays.stream(values())
 			.filter(command -> event.getCommandName().equals(command.name()))
 			.findFirst()
-			.ifPresent(command -> command.execute(event, bot));
+			.ifPresent(command -> {
+				event.deferReply().withEphemeral(command.isEphemeral()).block();
+				command.execute(event, bot);
+			});
+	}
+
+	protected Boolean isEphemeral() {
+		return false;
 	}
 
 	/**

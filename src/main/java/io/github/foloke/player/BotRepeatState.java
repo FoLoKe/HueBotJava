@@ -11,27 +11,33 @@ import java.util.Optional;
  * @since 05.02.2023
  */
 public enum BotRepeatState {
-	none,
-	repeat {
+	NONE,
+	REPEAT {
 		@Override
 		public Optional<Image> getImage() {
-			return BotResourceHandler.getImageByPath("ui/repeat.png");
+			return BotResourceHandler.getImageByPath(UI_REPEAT_PNG);
 		}
 	},
-	repeatQ {
+	REPEAT_QUEUE {
 		@Override
 		public Optional<Image> getImage() {
-			return BotResourceHandler.getImageByPath("ui/repeatQ.png");
+			return BotResourceHandler.getImageByPath(UI_REPEAT_Q_PNG);
 		}
 	};
+
+	private static final String UI_REPEAT_PNG = "ui/repeat.png";
+	private static final String UI_REPEAT_Q_PNG = "ui/repeatQ.png";
 
 	public Optional<Image> getImage() {
 		return Optional.empty();
 	}
 
+	/**
+	 * Returns player next state based on repeat state
+	 */
 	public static BotRepeatState getNextState(BotRepeatState botRepeatState, BotRepeatState botTargetRepeatState) {
 		if (botRepeatState == botTargetRepeatState) {
-			return none;
+			return NONE;
 		}
 		return botTargetRepeatState;
 	}
