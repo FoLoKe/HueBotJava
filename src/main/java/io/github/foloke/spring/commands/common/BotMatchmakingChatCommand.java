@@ -10,6 +10,8 @@ import discord4j.core.object.entity.channel.VoiceChannel;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import io.github.foloke.spring.services.localization.BotLocalization;
 import io.github.foloke.utils.commands.BotChatCommand;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -22,14 +24,14 @@ import java.util.stream.IntStream;
  * @author Марченко Дмитрий
  * @since 06.01.2024
  */
-
+@Component
 public class BotMatchmakingChatCommand implements BotChatCommand {
 	private static final String TEAMS_OPTION_NAME = "teams";
 	private static final String LEADERS_OPTION_NAME = "leaders";
 	private static final double MAX_TEAMS_COUNT = 10d;
 	private final BotLocalization localization;
 
-
+	@Autowired
 	public BotMatchmakingChatCommand(BotLocalization playerLocalization) {
 		localization = playerLocalization;
 	}

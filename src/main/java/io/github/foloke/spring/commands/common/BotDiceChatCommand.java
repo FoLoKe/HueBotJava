@@ -7,6 +7,8 @@ import discord4j.core.object.command.ApplicationCommandOption.Type;
 import discord4j.discordjson.json.ApplicationCommandOptionData;
 import io.github.foloke.spring.services.localization.BotLocalization;
 import io.github.foloke.utils.commands.BotChatCommand;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +22,7 @@ import java.util.stream.IntStream;
  * @author Марченко Дмитрий
  * @since 06.01.2024
  */
-
+@Component
 public class BotDiceChatCommand implements BotChatCommand {
 
 	private final Random random = new Random();
@@ -34,7 +36,7 @@ public class BotDiceChatCommand implements BotChatCommand {
 	private static final double MAX_COUNT_VALUE = 10;
 	private final BotLocalization localization;
 
-
+	@Autowired
 	public BotDiceChatCommand(BotLocalization playerLocalization) {
 		localization = playerLocalization;
 	}

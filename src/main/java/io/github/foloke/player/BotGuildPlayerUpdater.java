@@ -26,7 +26,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 05.02.2023
  */
 public class BotGuildPlayerUpdater extends Thread {
-	public static final int DELAY_MILLIS = 2000;
+	public static final int DELAY_MILLIS = 1000;
 	private static final String BG_UI_PLAYER_PNG = "ui/player.png";
 	private static final String DEFAULT_GIF_NAME = "ui.gif";
 	private static final String UPDATE_THREAD_STARTED_LOG_MESSAGE = "Update thread started: %s";
