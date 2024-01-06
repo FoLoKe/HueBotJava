@@ -1,5 +1,8 @@
 package io.github.foloke;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.imageio.ImageIO;
 import java.awt.*;
 import java.io.IOException;
@@ -7,8 +10,6 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Resource handler to load images for gif renderer
@@ -17,7 +18,7 @@ import java.util.logging.Logger;
  * @since 05.02.2023
  */
 public class BotResourceHandler {
-	private static final Logger logger = Logger.getLogger(BotResourceHandler.class.getName());
+	private static final Logger log = LoggerFactory.getLogger(BotResourceHandler.class.getName());
 	private static final String IMAGE_GET_ERROR_MESSAGE = "Image get error";
 	private static final String FILE_NOT_FOUND_ERROR_MESSAGE_FORMAT = "File not found: %s";
 	private final Map<String, Image> imageMap;
@@ -61,7 +62,7 @@ public class BotResourceHandler {
 				Image image = getInstance().getImage(resourcePath);
 				return Optional.of(image);
 			} catch (IOException e) {
-				logger.log(Level.SEVERE, IMAGE_GET_ERROR_MESSAGE, e);
+				log.info(IMAGE_GET_ERROR_MESSAGE, e);
 			}
 		}
 		return Optional.empty();

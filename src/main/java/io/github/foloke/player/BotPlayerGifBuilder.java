@@ -1,8 +1,9 @@
-package io.github.foloke.utils;
+package io.github.foloke.player;
 
 import de.cerus.jgif.GifEncoder;
 import de.cerus.jgif.GifImage;
 import discord4j.core.spec.MessageCreateFields.File;
+import io.github.foloke.utils.BotGifFrameBuilder;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;

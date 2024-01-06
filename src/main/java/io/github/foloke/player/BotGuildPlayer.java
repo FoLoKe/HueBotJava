@@ -10,13 +10,13 @@ import com.sedmelluq.discord.lavaplayer.track.playback.MutableAudioFrame;
 import com.sedmelluq.discord.lavaplayer.track.playback.NonAllocatingAudioFrameBuffer;
 import discord4j.core.object.entity.Message;
 import discord4j.voice.AudioProvider;
-import io.github.foloke.BotGuildPlayerUpdater;
+import io.github.foloke.spring.services.localization.BotLocalization;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.IntStream;
 
 /**
@@ -26,7 +26,7 @@ import java.util.stream.IntStream;
  * @since 04.02.2023
  */
 public final class BotGuildPlayer extends AudioProvider {
-	private static final Logger logger = Logger.getLogger(BotGuildPlayer.class.getName());
+	private static final Logger logger = LoggerFactory.getLogger(BotGuildPlayer.class.getName());
 	public static final float DEFAULT_VOLUME = 2;
 	private static final float MAX_VOLUME = 16;
 	private static final float VOLUME_STEP = MAX_VOLUME / 20;
@@ -61,7 +61,7 @@ public final class BotGuildPlayer extends AudioProvider {
 	/**
 	 * Creates a player instance associated with a guild.
 	 **/
-	public BotGuildPlayer(String guildId, String motd) {
+	public BotGuildPlayer(String guildId, String motd, BotLocalization playerLocalization) {
 		super(ByteBuffer.allocate(StandardAudioDataFormats.DISCORD_OPUS.maximumChunkSize()));
 		this.guildId = guildId;
 		playerManager = new DefaultAudioPlayerManager();
@@ -71,7 +71,7 @@ public final class BotGuildPlayer extends AudioProvider {
 		botQueue = new BotQueue(audioPlayer, this);
 		audioPlayer.addListener(botQueue);
 		audioPlayer.setVolume((int) volume);
-		botGuildPlayerUpdater = new BotGuildPlayerUpdater(this);
+		botGuildPlayerUpdater = new BotGuildPlayerUpdater(this, playerLocalization);
 		botGuildPlayerUpdater.start();
 		frame.setBuffer(getBuffer());
 		this.motd = motd;
@@ -189,7 +189,7 @@ public final class BotGuildPlayer extends AudioProvider {
 						float target = (1 - (float) i / segments) * currentVolume + (float) i / segments * volume;
 						audioPlayer.setVolume((int)target);
 					} catch (InterruptedException e) {
-						logger.log(Level.SEVERE, "Volume cahnge interrupted", e);
+						logger.error("Volume cahnge interrupted", e);
 						Thread.currentThread().interrupt();
 					}
 				});

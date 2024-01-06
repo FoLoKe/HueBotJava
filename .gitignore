@@ -33,3 +33,5 @@ build/
 /.idea/
 /HueBotJava.iml
 .env
+/src/main/resources/META-INF/
+/out/artifacts/HueBotJava_jar/HueBotJava.jar

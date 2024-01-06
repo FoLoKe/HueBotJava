@@ -1,25 +1,22 @@
-package io.github.foloke;
+package io.github.foloke.player;
 
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import discord4j.core.object.entity.Message;
 import discord4j.core.spec.MessageCreateFields.File;
-import discord4j.discordjson.json.MessageEditRequest;
 import discord4j.rest.http.client.ClientException;
-import io.github.foloke.player.BotGuildPlayer;
-import io.github.foloke.player.BotPlayState;
-import io.github.foloke.player.BotRepeatState;
-import io.github.foloke.utils.BotLocalization;
-import io.github.foloke.utils.BotPlayerGifBuilder;
+import io.github.foloke.BotResourceHandler;
+import io.github.foloke.spring.services.localization.BotLocalization;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Thread to update guild player. Every {@link this#DELAY_MILLIS} checks if there is anything updated and update and
@@ -29,12 +26,12 @@ import java.util.logging.Logger;
  * @since 05.02.2023
  */
 public class BotGuildPlayerUpdater extends Thread {
-	public static final int DELAY_MILLIS = 1000;
+	public static final int DELAY_MILLIS = 2000;
 	private static final String BG_UI_PLAYER_PNG = "ui/player.png";
 	private static final String DEFAULT_GIF_NAME = "ui.gif";
 	private static final String UPDATE_THREAD_STARTED_LOG_MESSAGE = "Update thread started: %s";
 	private static final String PLAYING_MESSAGE = "BotPlayer for guild %s is %s at position %s, track: \"%s\"";
-	private final Logger logger = Logger.getLogger(getClass().getName() + ": " + Thread.currentThread().getName());
+	private final Logger log = LoggerFactory.getLogger(getClass().getName() + ": " + Thread.currentThread().getName());
 	private final BotGuildPlayer botGuildPlayer;
 	private final Lock messageEditMutex = new ReentrantLock();
 	private Message message;
@@ -46,11 +43,14 @@ public class BotGuildPlayerUpdater extends Thread {
 	private float previousVolume;
 	private String previousTrack;
 
+	private final BotLocalization playerLocalization;
+
 	/**
 	 * Creates daemon thread to update player visuals (gif attachment). Use {@link this#setMessage(Message)} to
 	 * attach and start updating message;
 	 */
-	public BotGuildPlayerUpdater(BotGuildPlayer botGuildPlayer) {
+	public BotGuildPlayerUpdater(BotGuildPlayer botGuildPlayer, BotLocalization playerLocalization) {
+		this.playerLocalization = playerLocalization;
 		this.botGuildPlayer = botGuildPlayer;
 		setDaemon(true);
 	}
@@ -61,10 +61,7 @@ public class BotGuildPlayerUpdater extends Thread {
 	@Override
 	public void run() {
 		Thread.currentThread().setPriority(MIN_PRIORITY);
-		logger.log(
-			Level.INFO,
-			() -> String.format(UPDATE_THREAD_STARTED_LOG_MESSAGE, Thread.currentThread())
-		);
+		log.info(String.format(UPDATE_THREAD_STARTED_LOG_MESSAGE, Thread.currentThread()));
 		while (!isInterrupted()) {
 			try {
 				Thread.sleep(DELAY_MILLIS);
@@ -78,7 +75,7 @@ public class BotGuildPlayerUpdater extends Thread {
 				updatePlayerAndEditMessage(audioTrack);
 			}
 			if (audioTrack != null && !botGuildPlayer.isPaused()) {
-				logger.log(Level.INFO, () -> String.format(
+				log.info(String.format(
 					PLAYING_MESSAGE,
 					botGuildPlayer.getGuildId(),
 					audioTrack.getState(),
@@ -98,7 +95,7 @@ public class BotGuildPlayerUpdater extends Thread {
 		previousVolume = botGuildPlayer.getVolume();
 		started = false;
 		try {
-			String trackText = audioTrack == null ? BotLocalization.getPlayerMessage("player_help_message")
+			String trackText = audioTrack == null ? playerLocalization.getMessage("player_help_message")
 				: audioTrack.getInfo().title;
 			String resultPlayerText = previousQueueLen == 0 ? botGuildPlayer.getMotd() : trackText;
 			InputStream gifImageInputStream = new BotPlayerGifBuilder(
@@ -111,14 +108,12 @@ public class BotGuildPlayerUpdater extends Thread {
 				.setRepeatStateImage(previousBotRepeatState.getImage())
 				.buildInputStream();
 			List<File> fileList = new ArrayList<>();
-			fileList.add(File.of(DEFAULT_GIF_NAME, gifImageInputStream));
-			// delete previous attachment file
+			fileList.add(File.of(new Date().getTime() + DEFAULT_GIF_NAME, gifImageInputStream));
 			messageEditMutex.lock();
-			message.getRestMessage().edit(MessageEditRequest.builder().attachments(new ArrayList<>()).build()).block();
-			message = message.edit().withFiles(fileList).block();
+			message = message.edit().withAttachmentsOrNull(new ArrayList<>()).withFiles(fileList).block();
 			messageEditMutex.unlock();
 		} catch (Exception e) {
-			logger.log(Level.SEVERE, "updateCycle", e);
+			log.error("Update cycle error", e);
 		}
 	}
 
@@ -135,12 +130,12 @@ public class BotGuildPlayerUpdater extends Thread {
 	public void setMessage(Message message) {
 		messageEditMutex.lock();
 		if (this.message != null && !message.getId().equals(this.message.getId())) {
-			logger.log(Level.INFO, "new interaction, message replaced");
+			log.info("new interaction, message replaced");
 			try {
 				this.message.delete().block();
 			} catch (ClientException clientException) {
 				if(clientException.getStatus() == HttpResponseStatus.NOT_FOUND) {
-					logger.log(Level.INFO, "Message alredy deleted");
+					log.info("Message alredy deleted");
 				} else {
 					throw clientException;
 				}

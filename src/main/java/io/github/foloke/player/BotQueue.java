@@ -7,12 +7,12 @@ import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Optional;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 import static com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason.FINISHED;
@@ -26,6 +26,7 @@ import static com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason.LOAD_FA
  */
 public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandler {
 
+	private static final String PALYING_LOG_MESSAGE_FORMAT = "Palying: %s";
 	private final AudioPlayer player;
 	/**
 	 * Added tracks (Used for queue repeat)
@@ -39,7 +40,7 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 	 * Previous played tracks
 	 */
 	private final LinkedList<AudioTrack> previousQueue = new LinkedList<>();
-	private final Logger logger = Logger.getLogger(getClass().getName());
+	private final Logger log = LoggerFactory.getLogger(getClass().getName());
 	private final BotGuildPlayer botGuildPlayer;
 	private Optional<AudioTrack> lastTrack;
 
@@ -55,7 +56,7 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 	public void trackLoaded(AudioTrack track) {
 		queue.add(track);
 		workQueue.add(track);
-		logger.info(() -> "Palying: " + player.getPlayingTrack().getInfo().title);
+		log.info(String.format(PALYING_LOG_MESSAGE_FORMAT, track.getInfo().title));
 	}
 
 	@Override
@@ -64,39 +65,39 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 			queue.add(track);
 			workQueue.add(track);
 		});
-		logger.info(() -> "Playlist loaded");
+		log.info("Playlist loaded");
 	}
 
 	@Override
 	public void noMatches() {
 		player.stopTrack();
-		logger.info(() -> "No matching track, probably playlist");
+		log.info("No matching track, probably playlist");
 	}
 
 	@Override
 	public void loadFailed(FriendlyException exception) {
 		player.stopTrack();
-		logger.log(Level.SEVERE, "Load failed", exception);
+		log.error("Load failed", exception);
 	}
 
 	@Override
 	public void onPlayerPause(AudioPlayer player) {
-		logger.info(() -> "Track paused");
+		log.info("Track paused");
 	}
 
 	@Override
 	public void onPlayerResume(AudioPlayer player) {
-		logger.info(() -> "Trcak resumed");
+		log.info("Trcak resumed");
 	}
 
 	@Override
 	public void onTrackStart(AudioPlayer player, AudioTrack track) {
-		logger.info(() -> "Track started");
+		log.info("Track started");
 	}
 
 	@Override
 	public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
-		logger.info(() -> "Track ended: " + endReason);
+		log.info(String.format("Track ended: %s", endReason));
 		if (endReason == FINISHED || endReason == LOAD_FAILED) {
 			next();
 		}
@@ -104,12 +105,12 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 
 	@Override
 	public void onTrackException(AudioPlayer player, AudioTrack track, FriendlyException exception) {
-		logger.log(Level.SEVERE, "Track exception", exception);
+		log.error("Track exception", exception);
 	}
 
 	@Override
 	public void onTrackStuck(AudioPlayer player, AudioTrack track, long thresholdMs) {
-		logger.info(() -> "Track is stuck");
+		log.error("Track is stuck");
 		next();
 	}
 
@@ -127,7 +128,7 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 		}
 
 		if (!workQueue.isEmpty()) {
-			logger.info(() -> "Playing next");
+			log.info("Playing next");
 			AudioTrack audioTrack = workQueue.pop();
 			previousQueue.add(audioTrack.makeClone());
 			play(audioTrack);
@@ -138,17 +139,17 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 			} else {
 				lastTrack = Optional.empty();
 				player.stopTrack();
-				logger.info(() -> "Queue is empty");
+				log.info("Queue is empty");
 			}
 		}
 	}
 
 	private void play(AudioTrack track) {
-		logger.info(() -> "play");
+		log.info("play");
 		player.setVolume((int) botGuildPlayer.getVolume());
 		player.playTrack(track);
 		lastTrack = Optional.ofNullable(track);
-		logger.info(() -> "volume: " + player.getVolume());
+		log.info(String.format("volume: %s", player.getVolume()));
 	}
 
 	/**
@@ -178,7 +179,11 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 	 * Forces player to replay current track from the start.
 	 */
 	public void rewind() {
-		player.playTrack(player.getPlayingTrack().makeClone());
+		if (player.getPlayingTrack() != null) {
+			player.playTrack(player.getPlayingTrack().makeClone());
+		} else {
+			next();
+		}
 	}
 
 	/**
