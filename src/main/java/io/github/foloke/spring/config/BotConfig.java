@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 public class BotConfig {
 	private static final String BOT_IS_ACTIVE_FORMAT = "Bot is active %s";
 	private static final Logger log = LoggerFactory.getLogger(BotConfig.class);
+	private static final String BOT_STARTUP_ERROR_MESSAGE = "Bot startup error, retry in %dms:";
+	private static final int RETRY_INTERVAL_MS = 10000;
 
 	@Value("${token}")
 	private String token;
@@ -48,8 +50,17 @@ public class BotConfig {
 	 * Initiates and configurates discord interactions
 	 */
 	@Bean
-	public <T extends Event> GatewayDiscordClient gatewayDiscordClient(List<EventListener<T>> eventListenerList) {
+	public <T extends Event> GatewayDiscordClient gatewayDiscordClient(List<EventListener<T>> eventListenerList)
+		throws InterruptedException
+	{
+		return createDiscordClient(eventListenerList);
+	}
+
+	private <T extends Event> GatewayDiscordClient createDiscordClient(List<EventListener<T>> eventListenerList)
+		throws InterruptedException
+	{
 		try {
+			log.info("Trying to connect to Discord");
 			return DiscordClientBuilder.create(token)
 				.build()
 				.gateway()
@@ -65,9 +76,10 @@ public class BotConfig {
 					return Mono.just(client);
 				}).block();
 		} catch (Exception e) {
-			log.error("bot startup error", e);
+			log.error(String.format(BOT_STARTUP_ERROR_MESSAGE, RETRY_INTERVAL_MS), e);
 		}
-		return null;
+		Thread.sleep(RETRY_INTERVAL_MS);
+		return createDiscordClient(eventListenerList);
 	}
 
 

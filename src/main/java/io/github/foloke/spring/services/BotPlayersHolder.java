@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * TODO Class Description
+ * Guild's players holder (basicly factory)
  *
  * @author Марченко Дмитрий
  * @since 06.01.2024
@@ -24,7 +24,7 @@ public class BotPlayersHolder {
 	private static final String NEW_PLAYER_CREATED_LOG_MESSAGE = "new player created";
 	private final Logger log = LoggerFactory.getLogger(BotPlayersHolder.class);
 	private final Map<String, BotGuildPlayer> guildIdToBotPlayers = new ConcurrentHashMap<>();
-	private final BotLocalization botLocalization;
+	private final BotLocalization playerLocalization;
 	/**
 	 * Default track for new queue (for debugging)
 	 */
@@ -34,7 +34,7 @@ public class BotPlayersHolder {
 	private String motd;
 
 	public BotPlayersHolder(BotLocalization playerLocalization) {
-		this.botLocalization = playerLocalization;
+		this.playerLocalization = playerLocalization;
 	}
 
 	/**
@@ -48,7 +48,7 @@ public class BotPlayersHolder {
 	}
 
 	private BotGuildPlayer getNewBotPlayer(String guildId) {
-		BotGuildPlayer botGuildPlayer = new BotGuildPlayer(guildId, motd, botLocalization);
+		BotGuildPlayer botGuildPlayer = new BotGuildPlayer(guildId, motd, playerLocalization);
 		Arrays.stream(defaultTrackList.split(TRACKS_REGEX)).forEach(botGuildPlayer::addToQueue);
 		log.info(NEW_PLAYER_CREATED_LOG_MESSAGE);
 		return botGuildPlayer;
