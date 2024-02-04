@@ -33,7 +33,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 @Component
 public class BotCleanChatCommand implements BotChatCommand {
-	private static final int TIME_RUN_DELTA = 10000;
+	private static final int TIME_RUN_DELTA = 1000;
 	private final Logger log = LoggerFactory.getLogger(BotCleanChatCommand.class);
 	private final BotLocalization localization;
 
@@ -46,15 +46,20 @@ public class BotCleanChatCommand implements BotChatCommand {
 	}
 
 	private final Lock messageDeleteMutex = new ReentrantLock();
-	private final Executor threadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+	private final Executor threadPoolExecutor = new ScheduledThreadPoolExecutor(10);
 
 	@Override
 	public void execute(ChatInputInteractionEvent event) {
-		if (messageDeleteMutex.tryLock()) {
-			threadPoolExecutor.execute(() -> cleanMessages(event, cleaningImageUrl));
-		} else {
-			event.editReply(localization.getMessage("delete_operation_in_use")).block();
-		}
+		threadPoolExecutor.execute(() -> {
+			if (messageDeleteMutex.tryLock()) {
+				log.info("locked");
+				cleanMessages(event, cleaningImageUrl);
+				log.info("unlocked");
+				messageDeleteMutex.unlock();
+			} else {
+				event.editReply(localization.getMessage("delete_operation_in_use")).block();
+			}
+		});
 	}
 
 	@Override
@@ -64,6 +69,7 @@ public class BotCleanChatCommand implements BotChatCommand {
 
 	private void cleanMessages(ChatInputInteractionEvent event, String cleaningImageUrl) {
 		try {
+			Instant commandRunTime = Instant.now().minusMillis(TIME_RUN_DELTA);
 			log.info(String.format("Started deletion thread %s", Thread.currentThread()));
 			event.editReply()
 				.withEmbeds(EmbedCreateSpec.create()
@@ -79,7 +85,7 @@ public class BotCleanChatCommand implements BotChatCommand {
 					Snowflake botUserId = guild.getClient().getSelfId();
 					guild.getChannelById(channelId).blockOptional().ifPresent(guildChannel -> {
 						RestChannel restChannel = guildChannel.getRestChannel();
-						List<Message> messages = findMessagesToDelete(guild, restChannel, botUserId);
+						List<Message> messages = findMessagesToDelete(guild, restChannel, botUserId, commandRunTime);
 						if (messages != null) {
 							int size = messages.size();
 							log.info(String.format("Deleteing %s messages", size));
@@ -96,8 +102,6 @@ public class BotCleanChatCommand implements BotChatCommand {
 				.block();
 		} catch (Exception e) {
 			log.error("Mesage cleananing error", e);
-		} finally {
-			messageDeleteMutex.unlock();
 		}
 	}
 
@@ -109,8 +113,13 @@ public class BotCleanChatCommand implements BotChatCommand {
 		});
 	}
 
-	private List<Message> findMessagesToDelete(DiscordObject guild, RestChannel restChannel, Snowflake botUserId) {
-		return restChannel.getMessagesBefore(Snowflake.of(Instant.now().minusMillis(TIME_RUN_DELTA)))
+	private List<Message> findMessagesToDelete(
+		DiscordObject guild,
+		RestChannel restChannel,
+		Snowflake botUserId,
+		Instant commandRunTime
+	) {
+		return restChannel.getMessagesBefore(Snowflake.of(commandRunTime))
 			.filter(messageData -> messageData.author().id().equals(Id.of(botUserId.asString())))
 			.map(messageData -> new Message(guild.getClient(), messageData))
 			.collectList()
