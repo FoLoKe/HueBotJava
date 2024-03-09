@@ -95,14 +95,14 @@ public class BotGuildPlayerUpdater extends Thread {
 		previousVolume = botGuildPlayer.getVolume();
 		started = false;
 		try {
-			String trackText = audioTrack == null ? playerLocalization.getMessage("player_help_message")
-				: audioTrack.getInfo().title;
-			String resultPlayerText = previousQueueLen == 0 ? botGuildPlayer.getMotd() : trackText;
+			String modtText = botGuildPlayer.getMotd();
+			String helpText = modtText.isEmpty() ? playerLocalization.getMessage("player_help_message") : modtText;
+			String playerText = audioTrack == null ? helpText : audioTrack.getInfo().title;
 			InputStream gifImageInputStream = new BotPlayerGifBuilder(
 				previousQueuePosition,
 				previousQueueLen,
 				botGuildPlayer.getVolumePercent(),
-				resultPlayerText
+				playerText
 			).setBackgroundImage(BotResourceHandler.getImageByPath(BG_UI_PLAYER_PNG))
 				.setStateImage(previousBotPlayState.getImage())
 				.setRepeatStateImage(previousBotRepeatState.getImage())

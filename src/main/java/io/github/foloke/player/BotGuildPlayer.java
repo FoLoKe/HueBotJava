@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.stream.IntStream;
@@ -57,6 +58,7 @@ public final class BotGuildPlayer extends AudioProvider {
 
 	private BotRepeatState botRepeatState = BotRepeatState.NONE;
 	private final String motd;
+	private final BotLocalization playerLocalization;
 
 	/**
 	 * Creates a player instance associated with a guild.
@@ -71,6 +73,7 @@ public final class BotGuildPlayer extends AudioProvider {
 		botQueue = new BotQueue(audioPlayer, this);
 		audioPlayer.addListener(botQueue);
 		audioPlayer.setVolume((int) volume);
+		this.playerLocalization = playerLocalization;
 		botGuildPlayerUpdater = new BotGuildPlayerUpdater(this, playerLocalization);
 		botGuildPlayerUpdater.start();
 		frame.setBuffer(getBuffer());
@@ -89,8 +92,13 @@ public final class BotGuildPlayer extends AudioProvider {
 	/**
 	 * Add track or playlist to queue by link
 	 */
-	public void addToQueue(String link) {
-		playerManager.loadItem(link, botQueue);
+	public void addToQueue(String link) throws AddToQueueException {
+		BotQueueAudioLoader botQueueAudioLoader = new BotQueueAudioLoader(botQueue, playerLocalization);
+		playerManager.loadItemSync(link, botQueueAudioLoader);
+		List<String> errors = botQueueAudioLoader.getErrors();
+		if (!errors.isEmpty()) {
+			throw new AddToQueueException(errors);
+		}
 	}
 
 	/**
@@ -98,12 +106,26 @@ public final class BotGuildPlayer extends AudioProvider {
 	 */
 	public void play() {
 		if (audioPlayer.isPaused()) {
-			audioPlayer.setPaused(false);
+			unPause();
 		} else if (audioPlayer.getPlayingTrack() != null) {
-			audioPlayer.setPaused(true);
+			pause();
 		} else {
 			botQueue.next();
 		}
+	}
+
+	/**
+	 * Pause player
+	 */
+	public void pause() {
+		audioPlayer.setPaused(true);
+	}
+
+	/**
+	 * Unpause player
+	 */
+	public void unPause() {
+		audioPlayer.setPaused(false);
 	}
 
 	/**

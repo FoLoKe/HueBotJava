@@ -8,6 +8,7 @@ import discord4j.discordjson.json.ApplicationCommandOptionData;
 import io.github.foloke.spring.services.localization.BotLocalization;
 import io.github.foloke.utils.commands.BotChatCommand;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.stream.IntStream;
  * @since 06.01.2024
  */
 @Component
+@Qualifier("local")
 public class BotDiceChatCommand implements BotChatCommand {
 
 	private final Random random = new Random();
@@ -64,8 +66,8 @@ public class BotDiceChatCommand implements BotChatCommand {
 		event.editReply(String.join(caption, localization.getMessage("rolling_message"))).block();
 		IntStream.rangeClosed(1, count).forEach(index -> {
 			int diceValue = 1 + random.nextInt(d);
-			String diceReply = diceValue == 1 ? " " + localization.getMessage("critical_misfortune")
-				: diceValue == d ? " " + localization.getMessage("critical") : "";
+			String critReply = diceValue == d ? " " + localization.getMessage("critical") : "";
+			String diceReply = diceValue == 1 ? " " + localization.getMessage("critical_misfortune") : critReply;
 
 			replyStringBuilder.append(index).append(": \t\t").append(diceValue).append(diceReply).append("\n");
 		});
@@ -109,10 +111,5 @@ public class BotDiceChatCommand implements BotChatCommand {
 			.build()
 		);
 		return options;
-	}
-
-	@Override
-	public boolean isEphemeral() {
-		return false;
 	}
 }

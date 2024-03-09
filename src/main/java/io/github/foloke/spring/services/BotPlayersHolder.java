@@ -1,6 +1,7 @@
 package io.github.foloke.spring.services;
 
 import discord4j.common.util.Snowflake;
+import io.github.foloke.player.AddToQueueException;
 import io.github.foloke.player.BotGuildPlayer;
 import io.github.foloke.spring.services.localization.BotLocalization;
 import org.slf4j.Logger;
@@ -49,7 +50,13 @@ public class BotPlayersHolder {
 
 	private BotGuildPlayer getNewBotPlayer(String guildId) {
 		BotGuildPlayer botGuildPlayer = new BotGuildPlayer(guildId, motd, playerLocalization);
-		Arrays.stream(defaultTrackList.split(TRACKS_REGEX)).forEach(botGuildPlayer::addToQueue);
+		Arrays.stream(defaultTrackList.split(TRACKS_REGEX)).forEach(trackLink -> {
+			try {
+				botGuildPlayer.addToQueue(trackLink);
+			} catch (AddToQueueException e) {
+				log.error("Initial track add error");
+			}
+		});
 		log.info(NEW_PLAYER_CREATED_LOG_MESSAGE);
 		return botGuildPlayer;
 	}

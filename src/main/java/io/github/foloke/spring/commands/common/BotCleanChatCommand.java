@@ -13,6 +13,7 @@ import io.github.foloke.utils.commands.BotChatCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -32,8 +33,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * @since 06.01.2024
  */
 @Component
+@Qualifier("local")
 public class BotCleanChatCommand implements BotChatCommand {
-	private static final int TIME_RUN_DELTA = 1000;
+	private static final int TIME_RUN_DELTA = 5000;
 	private final Logger log = LoggerFactory.getLogger(BotCleanChatCommand.class);
 	private final BotLocalization localization;
 
@@ -62,20 +64,17 @@ public class BotCleanChatCommand implements BotChatCommand {
 		});
 	}
 
-	@Override
-	public boolean isEphemeral() {
-		return false;
-	}
-
 	private void cleanMessages(ChatInputInteractionEvent event, String cleaningImageUrl) {
 		try {
 			Instant commandRunTime = Instant.now().minusMillis(TIME_RUN_DELTA);
 			log.info(String.format("Started deletion thread %s", Thread.currentThread()));
+			EmbedCreateSpec embedCreateSpec = EmbedCreateSpec.create();
+			if (!cleaningImageUrl.isEmpty()) {
+				embedCreateSpec.withImage(cleaningImageUrl);
+			}
 			event.editReply()
-				.withEmbeds(EmbedCreateSpec.create()
-					.withImage(cleaningImageUrl)
-					.withTitle(localization.getMessage("searching_messages_to_delete_message"))
-				).block();
+				.withEmbeds(embedCreateSpec.withTitle(localization.getMessage("searching_messages_to_delete_message")))
+				.block();
 			AtomicInteger counter = new AtomicInteger();
 			Snowflake channelId = event.getInteraction().getChannelId();
 			event.getInteraction()

@@ -11,6 +11,7 @@ import discord4j.discordjson.json.ApplicationCommandOptionData;
 import io.github.foloke.spring.services.localization.BotLocalization;
 import io.github.foloke.utils.commands.BotChatCommand;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -25,6 +26,7 @@ import java.util.stream.IntStream;
  * @since 06.01.2024
  */
 @Component
+@Qualifier("local")
 public class BotMatchmakingChatCommand implements BotChatCommand {
 	private static final String TEAMS_OPTION_NAME = "teams";
 	private static final String LEADERS_OPTION_NAME = "leaders";
@@ -94,11 +96,6 @@ public class BotMatchmakingChatCommand implements BotChatCommand {
 
 			event.editReply(stringBuilder.toString()).block();
 		}, () -> event.editReply(localization.getMessage("not_in_the_channel_warning")).block());
-	}
-
-	@Override
-	public boolean isEphemeral() {
-		return false;
 	}
 
 	@Override

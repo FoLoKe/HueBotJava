@@ -129,7 +129,7 @@ public class BotPlayerGifBuilder {
 		IntStream.range(0, (int) symbols).forEach(i -> stringBuilder.append(EXISTING_VOLUME_SYMBOLS));
 		IntStream.range((stringBuilder.length() - 1) / VOLUME_SYMBOL_LEN, VOLUME_SYMBOLS_COUNT)
 			.forEach(i -> stringBuilder.append(NO_VOLUME_SYMBOLS));
-		stringBuilder.append(VOLUME_END_SYMBOLS).append(volume).append(PERCENT_SYMBOL);
+		stringBuilder.append(VOLUME_END_SYMBOLS).append(String.format("%.2f", volume)).append(PERCENT_SYMBOL);
 		return stringBuilder.toString();
 	}
 

@@ -20,6 +20,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public abstract class BotLocalization {
 
 	private static final Map<String, ResourceBundle> packageTolocaliztionBundleMap = new ConcurrentHashMap<>();
+	private static final String DEFAULT_LOCALE = "en";
 
 	@Value("${locale}")
 	private String localeName;
@@ -29,8 +30,9 @@ public abstract class BotLocalization {
 	 */
 	public String getMessage(String messageName) {
 		try {
+			String locale = localeName.equals(DEFAULT_LOCALE) ? "" : localeName;
 			return packageTolocaliztionBundleMap.computeIfAbsent(localeName, pkgName ->
-				 ResourceBundle.getBundle("locale." + getPackageName(), new Locale(localeName))
+				 ResourceBundle.getBundle("locale." + getPackageName(), new Locale(locale))
 			).getString(messageName);
 		} catch (MissingResourceException missingResourceException) {
 			return "No message found for: \"" + messageName + "\", for locale \""

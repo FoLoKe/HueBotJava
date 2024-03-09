@@ -1,7 +1,6 @@
 package io.github.foloke.spring.listeners;
 
 import discord4j.core.event.domain.interaction.ButtonInteractionEvent;
-import discord4j.core.spec.InteractionApplicationCommandCallbackSpec;
 import io.github.foloke.PlayerAccessException;
 import io.github.foloke.player.BotGuildPlayer;
 import io.github.foloke.spring.services.BotPlayerService;
@@ -12,7 +11,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+
+import static io.github.foloke.utils.commands.BotButtonCommand.ID_PARAMS_SEPARATOR;
 
 /**
  * Handles buttons interactions
@@ -26,28 +28,27 @@ public class ButtonCommandsListener implements EventListener<ButtonInteractionEv
 	private final Logger log = LoggerFactory.getLogger(ButtonCommandsListener.class);
 	private final BotPlayerService botPlayerService;
 	private final List<BotButtonCommand> buttonCommandList;
+
 	@Autowired
 	public ButtonCommandsListener(BotPlayerService botPlayerService, List<BotButtonCommand> buttonCommandList) {
 		this.botPlayerService = botPlayerService;
 		this.buttonCommandList = new ArrayList<>(buttonCommandList);
 	}
+
 	@Override
 	public void executeCommand(ButtonInteractionEvent event) {
 		try {
+			String commandName = Arrays.stream(event.getCustomId().split(ID_PARAMS_SEPARATOR)).findFirst().orElse("");
 			event.getInteraction().getGuildId().ifPresent(guildId -> {
 				BotGuildPlayer botGuildPlayer = botPlayerService.connect(guildId, event.getInteraction());
-				if (event.getMessage().isPresent()) {
+				if (botPlayerService.isPlayerButtonCommand(commandName) && event.getMessage().isPresent()) {
 					botGuildPlayer.setMessage(event.getMessage().get());
 				}
 
 				buttonCommandList.stream()
-					.filter(command -> event.getCustomId().equals(command.getCommandName()))
+					.filter(command -> commandName.equals(command.getCommandName()))
 					.findFirst()
-					.ifPresent(command -> {
-						command.execute(botGuildPlayer);
-						event.edit(InteractionApplicationCommandCallbackSpec.builder().build()).block();
-					});
-
+					.ifPresent(command -> command.execute(event, botGuildPlayer));
 			});
 		} catch (PlayerAccessException e) {
 			botPlayerService.replyToAccessError(event, e);

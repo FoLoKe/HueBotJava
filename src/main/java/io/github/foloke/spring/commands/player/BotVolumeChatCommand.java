@@ -11,6 +11,7 @@ import io.github.foloke.spring.services.BotPlayerService;
 import io.github.foloke.spring.services.localization.BotLocalization;
 import io.github.foloke.utils.commands.BotChatCommand;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -24,6 +25,7 @@ import java.util.Optional;
  * @since 06.01.2024
  */
 @Component
+@Qualifier("local")
 public class BotVolumeChatCommand implements BotChatCommand {
 
 	public static final String AMOUNT_OPTION_NAME = "amount";

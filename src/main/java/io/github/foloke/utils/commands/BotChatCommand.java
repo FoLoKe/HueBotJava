@@ -14,8 +14,14 @@ import java.util.List;
  */
 @Component
 public interface BotChatCommand extends BotCommand<ChatInputInteractionEvent> {
-	boolean isEphemeral();
+	default boolean isEphemeral() {
+		return false;
+	}
 	String getDescription();
 	List<ApplicationCommandOptionData> getOptions();
+
+	/**
+	 * Execute command
+	 */
 	void execute(ChatInputInteractionEvent event);
 }

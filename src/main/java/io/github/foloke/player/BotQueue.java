@@ -1,10 +1,8 @@
 package io.github.foloke.player;
 
-import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
-import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import org.slf4j.Logger;
@@ -12,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -24,14 +23,13 @@ import static com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason.LOAD_FA
  * @author Dmitry Marchenko
  * @since 04.02.2023
  */
-public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandler {
+public class BotQueue extends AudioEventAdapter {
 
-	private static final String PALYING_LOG_MESSAGE_FORMAT = "Palying: %s";
 	private final AudioPlayer player;
 	/**
 	 * Added tracks (Used for queue repeat)
 	 */
-	private final LinkedList<AudioTrack> queue = new LinkedList<>();
+	private final List<AudioTrack> queue = new LinkedList<>();
 	/**
 	 * Current working queue
 	 */
@@ -50,34 +48,6 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 	public BotQueue(AudioPlayer player, BotGuildPlayer botGuildPlayer) {
 		this.player = player;
 		this.botGuildPlayer = botGuildPlayer;
-	}
-
-	@Override
-	public void trackLoaded(AudioTrack track) {
-		queue.add(track);
-		workQueue.add(track);
-		log.info(String.format(PALYING_LOG_MESSAGE_FORMAT, track.getInfo().title));
-	}
-
-	@Override
-	public void playlistLoaded(AudioPlaylist playlist) {
-		playlist.getTracks().forEach(track -> {
-			queue.add(track);
-			workQueue.add(track);
-		});
-		log.info("Playlist loaded");
-	}
-
-	@Override
-	public void noMatches() {
-		player.stopTrack();
-		log.info("No matching track, probably playlist");
-	}
-
-	@Override
-	public void loadFailed(FriendlyException exception) {
-		player.stopTrack();
-		log.error("Load failed", exception);
 	}
 
 	@Override
@@ -223,5 +193,13 @@ public class BotQueue extends AudioEventAdapter implements AudioLoadResultHandle
 
 	public AudioTrack getTrack() {
 		return player.getPlayingTrack();
+	}
+
+	/**
+	 * Add preloaded track to the queue
+	 */
+	public void addLoadedTrack(AudioTrack track) {
+		queue.add(track);
+		workQueue.add(track);
 	}
 }

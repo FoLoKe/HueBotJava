@@ -1,8 +1,9 @@
 pom:
   version: @project.version@
 token: ${TOKEN}
-locale: ${LOCALE:en}
-devGuildId: ${DEV_GUILD_ID}
-motd: ${MOTD}
-defaultTrackList: ${DEFAULT_TRACK}
-cleaningImageUrl: ${CLEANING_IMAGE}
+locale: ${LOCALE:#{""}}
+motd: ${MOTD:#{""}}
+defaultTrackList: ${DEFAULT_TRACK:#{""}}
+cleaningImageUrl: ${CLEANING_IMAGE:#{""}}
+debug: ${DEBUG:#{false}}
+ytApiKey: ${YT_API_KEY:#{""}}

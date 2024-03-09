@@ -3,7 +3,6 @@ package io.github.foloke.spring.listeners;
 import discord4j.core.event.domain.interaction.ChatInputInteractionEvent;
 import io.github.foloke.PlayerAccessException;
 import io.github.foloke.spring.services.BotPlayerService;
-import io.github.foloke.utils.commands.BotButtonCommand;
 import io.github.foloke.utils.commands.BotChatCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,17 +25,11 @@ public class ChatCommandsListener implements EventListener<ChatInputInteractionE
 	private final Logger log = LoggerFactory.getLogger(ChatCommandsListener.class);
 	private final BotPlayerService botPlayerService;
 	private final List<BotChatCommand> commandList;
-	private final List<BotButtonCommand> buttonCommandList;
 
 	@Autowired
-	public ChatCommandsListener(
-		BotPlayerService botPlayerService,
-		List<BotChatCommand> commandList,
-		List<BotButtonCommand> buttonCommandList
-	) {
+	public ChatCommandsListener(BotPlayerService botPlayerService, List<BotChatCommand> commandList) {
 		this.botPlayerService = botPlayerService;
 		this.commandList = new ArrayList<>(commandList);
-		this.buttonCommandList = new ArrayList<>(buttonCommandList);
 	}
 
 	@Override
@@ -50,7 +43,7 @@ public class ChatCommandsListener implements EventListener<ChatInputInteractionE
 					command.execute(event);
 				});
 		} catch (PlayerAccessException e) {
-			botPlayerService.replyToAccessError(event, e);
+			botPlayerService.editReplyToAccessError(event, e);
 		} catch (Exception e) {
 			log.error(CHAT_COMMANDS_SUBSCRIPTION_ERROR_MESSAGE, e);
 		}
